@@ -4,52 +4,160 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Fazenda Sustentável - Jogo do Agrinho</title>
+    <title>Contador de Gado Automatizado</title>
     <style>
-        /* Configurações Gerais da Página */
         body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            margin: 0;
-            padding: 0;
-            background-color: #e8f5e9;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            user-select: none;
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background-color: #f4f4f9;
+            color: #333;
         }
-
-        header {
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
             text-align: center;
-            margin-top: 20px;
-            color: #2e7d32;
         }
-
-        h1 {
-            margin-bottom: 5px;
-        }
-
-        /* Painel de Pontuação e Tempo */
-        #painel {
-            display: flex;
-            gap: 40px;
-            font-size: 1.2rem;
+        .status {
+            padding: 10px;
+            margin: 10px 0;
+            background-color: #e2e3e5;
+            border-radius: 5px;
             font-weight: bold;
-            color: #37474f;
-            margin-bottom: 15px;
-            background: white;
-            padding: 10px 20px;
-            border-radius: 20px;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        .resultado-container {
+            margin-top: 20px;
+            display: flex;
+            justify-content: space-around;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+        canvas, img {
+            max-width: 100%;
+            height: auto;
+            border: 2px solid #ccc;
+            border-radius: 4px;
+            background-color: #ddd;
+        }
+        h3 {
+            margin: 5px 0;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2>Contador de Gado por Imagem (Visão Computacional)</h2>
+    
+    <div id="status" class="status">Carregando inteligência do OpenCV.js... Aguarde.</div>
+    
+    <input type="file" id="upload-imagem" accept="image/*" disabled>
+    
+    <div class="resultado-container">
+        <div>
+            <h3>1. Imagem Original</h3>
+            <img id="imagem-original" alt="Sua imagem aparecerá aqui">
+        </div>
+        <div>
+            <h3>2. Resultado da Contagem</h3>
+            <canvas id="canvas-resultado"></canvas>
+        </div>
+    </div>
+</div>
+
+<script async src="https://docs.opencv.org/4.11.0/opencv.js" type="text/javascript" id="opencv-script"></script>
+
+<script>
+    const statusDiv = document.getElementById('status');
+    const uploadInput = document.getElementById('upload-imagem');
+    const imagemOriginal = document.getElementById('imagem-original');
+    const canvasResultado = document.getElementById('canvas-resultado');
+
+    // Executa quando o OpenCV.js terminar de carregar na página
+    document.getElementById('opencv-script').onload = function() {
+        statusDiv.style.backgroundColor = "#d4edda";
+        statusDiv.style.color = "#155724";
+        statusDiv.innerText = "OpenCV pronto! Selecione uma foto de drone ou aérea com gado.";
+        uploadInput.disabled = false; // Libera o botão de upload
+    };
+
+    // Detecta quando o usuário envia uma imagem
+    uploadInput.addEventListener('change', (e) => {
+        const arquivo = e.target.files[0];
+        if (arquivo) {
+            const url = URL.createObjectURL(arquivo);
+            imagemOriginal.src = url;
+        }
+    });
+
+    // Quando a imagem terminar de carregar na tela, processa a contagem
+    imagemOriginal.onload = function() {
+        processarContagemGado();
+    };
+
+    function processarContagemGado() {
+        // 1. Lê a imagem do elemento HTML e joga para a matriz do OpenCV
+        let src = cv.imread(imagemOriginal);
+        let dst = cv.createMatWithSize(src.rows, src.cols, cv.CV_8UC3);
+        let cinza = new cv.Mat();
+        let desfocada = new cv.Mat();
+        let limiar = new cv.Mat();
+        let contornos = new cv. some; 
+        contornos = new cv.MatVector();
+        let hierarquia = new cv.Mat();
+
+        // 2. Converte para tons de cinza
+        cv.cvtColor(src, cinza, cv.COLOR_RGBA2GRAY);
+
+        // 3. Aplica desfoque para limpar imperfeições da grama
+        let ksize = new cv.Size(5, 5);
+        cv.GaussianBlur(cinza, desfocada, ksize, 0, 0, cv.BORDER_DEFAULT);
+
+        // 4. Limiarização (Binarização em Preto e Branco)
+        // Se o gado for claro e o pasto escuro, usamos THRESH_BINARY. Valor corte: 170.
+        cv.threshold(desfocada, limiar, 170, 255, cv.THRESH_BINARY);
+
+        // 5. Encontra os contornos dos objetos brancos gerados
+        cv.findContours(limiar, contornos, hierarquia, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE);
+
+        let totalGado = 0;
+        src.copyTo(dst); // Copia imagem original para a tela de desenho final
+
+        // 6. Loop para filtrar o tamanho dos bois encontrados
+        for (let i = 0; i < contornos.size(); ++i) {
+            let contorno = contornos.get(i);
+            let area = cv.contourArea(contorno);
+
+            // Filtro de tamanho de área (Ajuste 50 e 3000 dependendo da resolução da foto)
+            if (area > 50 && area < 3000) {
+                totalGado++;
+                
+                // Pega as coordenadas para desenhar o retângulo
+                let retangulo = cv.boundingRect(contorno);
+                let ponto1 = new cv.Point(retangulo.x, retangulo.y);
+                let ponto2 = new cv.Point(retangulo.x + retangulo.width, retangulo.y + retangulo.height);
+                
+                // Desenha o quadrado verde em volta do boi
+                cv.rectangle(dst, ponto1, ponto2, [0, 255, 0, 255], 2);
+
+                // Escreve o número do boi ao lado do retângulo
+                cv.putText(dst, totalGado.toString(), new cv.Point(retangulo.x, retangulo.y - 5), 
+                           cv.FONT_HERSHEY_SIMPLEX, 0.5, [255, 0, 0, 255], 1);
+            }
         }
 
-        /* Área do Jogo (O Campo) */
-        #campo {
-            width: 800px;
-            height: 450px;
-            background-color: #c8e6c9;
-            border: 8px solid #8d6e63;
-            border-radius: 12px;
-            position: relative;
-            overflow: hidden;
-            cursor: crosshair;
-            box-shadow: 0 8
+        // Escreve o placar geral no topo esquerdo do Canvas
+        cv.putText(dst, `Total de Gado: ${totalGado}`, new cv.Point(15, 35), 
+                   cv.FONT_HERSHEY_SIMPLEX, 1, [255, 0, 0, 255], 2);
+
+        // 7. Renderiza o resultado no Canvas HTML
+        cv.imshow(canvasResultado, dst);
+
+        // 8. Limpa a memória das matrizes do OpenCV
+        src.delete(); dst.delete(); cinza.delete(); desfocada.delete();
+        limiar.delete(); contornos.delete(); hierarquia.delete();
+    }
+</script>
+
+</body>
+    
+</html>
